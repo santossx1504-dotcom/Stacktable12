@@ -1,0 +1,26 @@
+name: build
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 9.2.1 }
+      - name: Compilar
+        run: |
+          unzip -q stacktable-src.zip
+          cd stacktable
+          Y=$(curl -s https://meta.fabricmc.net/v2/versions/yarn/1.21.11 | jq -r '.[0].version')
+          L=$(curl -s https://meta.fabricmc.net/v2/versions/loader | jq -r '[.[]|select(.stable)][0].version')
+          F=$(curl -s https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml | grep -o '<version>[^<]*+1.21.11</version>' | tail -1 | sed 's/<[^>]*>//g')
+          sed -i "s|^yarn_mappings=.*|yarn_mappings=$Y|;s|^loader_version=.*|loader_version=$L|;s|^fabric_version=.*|fabric_version=$F|" gradle.properties
+          gradle build --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stacktable-jar
+          path: |
+            stacktable/build/libs/*.jar
+            !stacktable/build/libs/*-sources.jar
